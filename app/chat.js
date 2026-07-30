@@ -80,14 +80,20 @@ function handleText(text){
   botTalk(text);}
 function botTalk(text){typing(true);
   chatAnswer(text,function(ans,closing){typing(false);el(ans,'msg bot');
-    if(closing){closeTalk();return;}
+    if(window.lnAsk)lnAsk(text,ans);           /* обезличенная запись для улучшения ответов */
+    if(closing){if(window.lnEvent)lnEvent('разговор закончен словами');closeTalk();return;}
     /* всегда даём видимый выход из разговора: без него человек не понимает,
        как закончить, и чат ощущается бесконечным */
     if(pending===null)afterAnswerChips();});}
-/* кнопки после свободного ответа: продолжить разговор или закончить */
+/* кнопки после свободного ответа: оценка + продолжить или закончить.
+   Оценка нужна, чтобы понимать, какие ответы чинить (данные обезличенные). */
 function afterAnswerChips(){
   clearChips();
-  var list=[];
+  var list=[{t:'👍',fn:function(){if(window.lnRate)lnRate(true);
+              botMsg('Понял, буду держаться этой линии.',afterAnswerChips);}},
+            {t:'👎',fn:function(){if(window.lnRate)lnRate(false);
+              botMsg('Принял. Скажи в двух словах, чего не хватило — и я отвечу иначе.',function(){
+                if(window.lnEvent)lnEvent('ответ не помог');});}}];
   if(S.quiz&&S.habits.length){
     if(S.lastCheck!==todayStr())list.push({t:'⚡ Замерить день',fn:startCheck});
     else list.push({t:'Сводка недели',fn:showSummary});}
@@ -96,6 +102,7 @@ function afterAnswerChips(){
 /* явное завершение по кнопке: подводим итог и отпускаем человека */
 function endTalk(){
   clearChips();meMsg('Спасибо, достаточно');
+  if(window.lnEvent)lnEvent('вышел по кнопке');
   var task=LAST_TASK;
   chatReset();
   botMsg('Рад был помочь 🌿'+(task?' Главное — сделай сегодня один шаг, остальное подождёт.':''),function(){
@@ -133,7 +140,7 @@ function greet(){
   if(!S.quiz){
     botMsg('Привет. Я банка DZEN 🥤 Умею одну вещь: находить, куда утекает твоя энергия.',function(){
     botMsg('Пять вопросов — и я скажу, где именно у тебя дыра. Даже если ты сам этого за собой не замечал.',function(){
-    botMsg('И сразу главное: я не анкета. В любой момент пиши или наговаривай 🎙 что угодно своими словами — про сон, усталость, тягу к сладкому, нервы. Отвечу как эксперт. Начнём?',function(){
+    botMsg('И сразу главное: я не анкета. В любой момент пиши или наговаривай 🎙 что угодно своими словами — про сон, усталость, тягу к сладкому, нервы. Отвечу как эксперт.\n\nЧтобы отвечать лучше, я запоминаю обезличенно: о чём спросили и помог ли ответ. Без имён и контактов. Начнём?',function(){
       chips([{t:'Давай',fn:startProbe},
              {t:'А ты кто вообще?',fn:function(){meMsg('А ты кто вообще?');
                botMsg('Банка газировки, которая слишком много знает про сон. Если серьёзно — цифровой помощник, не человек. Проверять будем тебя, а не меня 🙂',function(){
@@ -179,6 +186,7 @@ function askMirror(){
 
 function probeDone(said){
   var res=probeResult(probeAns);
+  if(window.lnEvent)lnEvent('опрос пройден: '+res.top.id);
   var L=LEAKS[res.top.id];
   S.quiz={a:probeAns,index:res.index,said:said,leak:res.top.id,date:todayStr()};
   S.recommend=L.habit;save();pshh();
