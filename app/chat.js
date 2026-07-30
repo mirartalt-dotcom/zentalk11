@@ -18,7 +18,7 @@ document.getElementById('app').innerHTML=
 ' <div class="chat-scroll" id="scroll"></div>'+
 ' <div class="chat-input">'+
 '  <button class="chat-btn chat-mic" id="mic" hidden aria-label="Наговорить голосом">'+MIC_SVG+'</button>'+
-'  <input id="inp" type="text" placeholder="Скажи или напиши…" autocomplete="off">'+
+'  <input id="inp" type="text" placeholder="Спроси о чём угодно…" autocomplete="off">'+
 '  <button class="chat-btn chat-send" id="send">↑</button>'+
 ' </div></div>';
 
@@ -81,7 +81,31 @@ function handleText(text){
 function botTalk(text){typing(true);
   chatAnswer(text,function(ans,closing){typing(false);el(ans,'msg bot');
     if(closing){closeTalk();return;}
-    if(pending===null&&S.quiz&&S.habits.length)offerMain();});}
+    /* всегда даём видимый выход из разговора: без него человек не понимает,
+       как закончить, и чат ощущается бесконечным */
+    if(pending===null)afterAnswerChips();});}
+/* кнопки после свободного ответа: продолжить разговор или закончить */
+function afterAnswerChips(){
+  clearChips();
+  var list=[];
+  if(S.quiz&&S.habits.length){
+    if(S.lastCheck!==todayStr())list.push({t:'⚡ Замерить день',fn:startCheck});
+    else list.push({t:'Сводка недели',fn:showSummary});}
+  list.push({t:'Спасибо, достаточно',fn:endTalk});
+  chips(list);}
+/* явное завершение по кнопке: подводим итог и отпускаем человека */
+function endTalk(){
+  clearChips();meMsg('Спасибо, достаточно');
+  var task=LAST_TASK;
+  chatReset();
+  botMsg('Рад был помочь 🌿'+(task?' Главное — сделай сегодня один шаг, остальное подождёт.':''),function(){
+    var done=S.lastCheck===todayStr();
+    botMsg(done?'Заходи завтра — посмотрим, что изменилось.':'Заходи, когда будет минута: замер занимает 30 секунд.',function(){
+      var l=[];
+      if(!done&&S.habits.length)l.push({t:'⚡ Замерить день',fn:startCheck});
+      l.push({t:'⏰ Напомнить вечером',fn:showRemind});
+      if(S.habits.length)l.push({t:'🏆 Мои ачивки',fn:showAchv});
+      chips(l);});});}
 /* мягкое завершение разговора + крючок на завтра */
 function closeTalk(){
   clearChips();
@@ -108,11 +132,12 @@ function greet(){
   var t=todayStr();
   if(!S.quiz){
     botMsg('Привет. Я банка DZEN 🥤 Умею одну вещь: находить, куда утекает твоя энергия.',function(){
-    botMsg('Пять вопросов — и я скажу, где именно у тебя дыра. Даже если ты сам этого за собой не замечал. Проверим?',function(){
+    botMsg('Пять вопросов — и я скажу, где именно у тебя дыра. Даже если ты сам этого за собой не замечал.',function(){
+    botMsg('И сразу главное: я не анкета. В любой момент пиши или наговаривай 🎙 что угодно своими словами — про сон, усталость, тягу к сладкому, нервы. Отвечу как эксперт. Начнём?',function(){
       chips([{t:'Давай',fn:startProbe},
              {t:'А ты кто вообще?',fn:function(){meMsg('А ты кто вообще?');
                botMsg('Банка газировки, которая слишком много знает про сон. Если серьёзно — цифровой помощник, не человек. Проверять будем тебя, а не меня 🙂',function(){
-                 chips([{t:'Ладно, поехали',fn:startProbe}]);});}}]);});});}
+                 chips([{t:'Ладно, поехали',fn:startProbe}]);});}}]);});});});}
   else if(!S.habits.length){botMsg('Мы остановились на выборе привычки. Продолжим?',function(){showShelf();});}
   else if(S.lastCheck!==t){var d=Math.min((S.streak%7)+1,7);
     botMsg('С возвращением! Серия '+d+' из 7 ждёт замера — 30 секунд. Начнём?',function(){
