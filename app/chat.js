@@ -86,7 +86,19 @@ function botTalk(text){typing(true);
        как закончить, и чат ощущается бесконечным.
        Полка привычек — не помеха: показываем оценку рядом, не стирая полку. */
     if(pending===null)afterAnswerChips();
+    /* внутри опроса эксперт ответил на вопрос человека — возвращаем кнопки
+       варианта, иначе опрос «повисает» без видимого продолжения */
+    else if(window.probeContext&&probeContext())reAskProbeChips();
     else if($('.chat-shelf'))rateOnlyChips();});}
+/* заново показать варианты текущего вопроса опроса */
+function reAskProbeChips(){
+  var pc=probeContext();if(!pc)return;
+  var i=PROBE_STEP,q=PROBE[i];
+  $$('.chips').forEach(function(c){c.remove();});
+  botMsg('Вернёмся к вопросу: '+q.q,function(){
+    chips(q.opts.map(function(o,oi){return {t:o.t,fn:function(){
+      meMsg(o.t);probeAns[q.id]=oi;PROBE_STEP=null;pending=null;
+      botMsg(o.say,function(){askProbe(i+1);});}};}));});}
 /* короткий ряд оценки, когда на экране полка привычек (её стирать нельзя) */
 function rateOnlyChips(){
   $$('.chips').forEach(function(c){c.remove();});
@@ -189,8 +201,23 @@ function askProbe(i){
       meMsg(o.t);probeAns[q.id]=oi;
       /* объяснение сразу — польза порциями, даже если человек бросит на середине */
       botMsg(o.say,function(){askProbe(i+1);});}};}));
-    /* свободный ответ на любом шаге: пусть отвечает эксперт, вопрос не теряем */
-    expect(function(){return false;});});}
+    /* ответ СЛОВАМИ засчитываем как выбор варианта: человек часто пишет
+       «всегда», «вечером», «норм» вместо нажатия кнопки. Если слова не
+       распознались — это вопрос к эксперту, и тогда мы возвращаемся к тому
+       же шагу опроса, а не теряем его. */
+    PROBE_STEP=i;
+    expect(function(text){
+      var oi=window.probeMatch?probeMatch(q.id,text):null;
+      if(oi===null)return false;
+      clearChips();PROBE_STEP=null;probeAns[q.id]=oi;
+      botMsg(q.opts[oi].say,function(){askProbe(i+1);});
+      return true;});});}
+/* какой вопрос опроса сейчас на экране — нужно, чтобы нейронка отвечала в тему */
+var PROBE_STEP=null;
+window.probeContext=function(){
+  if(PROBE_STEP===null||PROBE_STEP>=PROBE.length)return null;
+  var q=PROBE[PROBE_STEP];
+  return {q:q.q,opts:q.opts.map(function(o){return o.t;})};};
 
 /* самооценка — В КОНЦЕ, чтобы было с чем сверить */
 function askMirror(){
