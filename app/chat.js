@@ -83,8 +83,22 @@ function botTalk(text){typing(true);
     if(window.lnAsk)lnAsk(text,ans);           /* обезличенная запись для улучшения ответов */
     if(closing){if(window.lnEvent)lnEvent('разговор закончен словами');closeTalk();return;}
     /* всегда даём видимый выход из разговора: без него человек не понимает,
-       как закончить, и чат ощущается бесконечным */
-    if(pending===null)afterAnswerChips();});}
+       как закончить, и чат ощущается бесконечным.
+       Полка привычек — не помеха: показываем оценку рядом, не стирая полку. */
+    if(pending===null)afterAnswerChips();
+    else if($('.chat-shelf'))rateOnlyChips();});}
+/* короткий ряд оценки, когда на экране полка привычек (её стирать нельзя) */
+function rateOnlyChips(){
+  $$('.chips').forEach(function(c){c.remove();});
+  var c=document.createElement('div');c.className='chips';
+  [['👍',true],['👎',false]].forEach(function(p){
+    var btn=document.createElement('button');btn.className='chip';btn.textContent=p[0];
+    btn.addEventListener('click',function(){tick();
+      if(window.lnRate)lnRate(p[1]);
+      if(!p[1]&&window.lnEvent)lnEvent('ответ не помог');
+      c.remove();});
+    c.appendChild(btn);});
+  SCROLL.appendChild(c);down();}
 /* кнопки после свободного ответа: оценка + продолжить или закончить.
    Оценка нужна, чтобы понимать, какие ответы чинить (данные обезличенные). */
 function afterAnswerChips(){
